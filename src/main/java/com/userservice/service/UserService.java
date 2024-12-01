@@ -51,7 +51,7 @@ public class UserService {
         if(!bCryptPasswordEncoder.matches(password, user.getHashPassword())){
             throw new UserNotFoundException("User Email and password are not matching");
         }
-ß
+
         Token token = generateToken(user);
         return tokenRepo.save(token);
 
