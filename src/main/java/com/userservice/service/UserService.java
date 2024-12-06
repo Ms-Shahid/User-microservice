@@ -31,7 +31,7 @@ public class UserService {
         User user = new User();
         user.setEmail(email);
         user.setName(name);
-        //user.setHashPassword(password); //By default once the BCryptPasswordEncoder dependecy is set, this gives 401 status_code
+        //user.setHashPassword(password); //By default once the BCryptPasswordEncoder dependency is set, this gives 401 status_code
         user.setHashPassword(bCryptPasswordEncoder.encode(password));
 
         return userRepository.save(user);
@@ -64,15 +64,14 @@ public class UserService {
         token.setUser(user);
         return token;
     }
-
-    public User validateToken(String token) {
-        //Self validating Token
-        /*
+    //Self validating Token
+     /*
         A token is valid if
         1. Token Exist in DB
         2. Token has not expired
         3. Token has not marked as deleted
-         */
+      */
+    public User validateToken(String token) {
         Optional<Token> tokenResult = tokenRepo
                 .findByValueAndDeletedExpiryAtGreaterThan(token, false, System.currentTimeMillis());
 
