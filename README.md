@@ -78,4 +78,39 @@ public class SecurityConfig {
 ```
 
 
-  
+### Integrating UserService <-> ProductService
+
+> Problem Statement : 
+trigger the userService for generating token, use this token in productService header & trigger the userService to validate this token for getting product details
+
+- As per the PS, in the logic to `/validate` is in userService(AuthServer), the changes in `productService`, 
+ ```java
+@GetMapping("/validate/{id}")
+public Product validateTokenAndGetProduct( @RequestHeader("Token") String token,
+    @PathVariable("id") Long id) throws ProductNotFoundException {
+    if(!tokenService.validateToken(token)){
+        throw new UnknownAccessTypeException("User is not authorized");
+    }
+    Product product = productService.getProductById(id);
+    ResponseEntity<Product> productResponseEntity = new ResponseEntity<>(product, HttpStatus.OK);
+    return productResponseEntity.getBody();
+}
+```
+
+- In tokenService, we are calling ``UserService`` as Rest call
+```java
+public boolean validateToken(String token){
+        UserResponseDto userResponseDto = restTemplate.getForObject(
+                "http://localhost:8080/user/validate/" + token, UserResponseDto.class
+        );
+        System.out.println("Ping.... " + userResponseDto);
+
+        return userResponseDto != null
+                && !userResponseDto.getEmail().isEmpty()
+                && !userResponseDto.getName().isEmpty();
+
+    }
+``` 
+
+### API Contract
+- `Swagger` API contract is been shared by services, that describes the api's that are accessed & shared between these microservices.
