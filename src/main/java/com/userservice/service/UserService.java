@@ -77,4 +77,18 @@ public class UserService {
 
         return tokenResult.map(Token::getUser).orElse(null);
     }
+
+
+    public void logout(String token) {
+
+        Optional<Token> optionalToken = tokenRepo.findByValueAndDeletedEquals(token, false);
+
+        if( optionalToken.isEmpty() ) return;
+
+        Token tokenToBeRemoved = optionalToken.get();
+        tokenToBeRemoved.setDeleted(true);
+
+        tokenRepo.save(tokenToBeRemoved);
+
+    }
 }

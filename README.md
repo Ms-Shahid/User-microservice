@@ -54,6 +54,7 @@ public class EncoderConfig {
 - This has been used as dependency in ``UserService constrcutor`` 
 - By default, `Spring-security` as dependency blocks every endpoint, and gives `401 Unauthorized` 
 - For that we need to provide, another config, ``SecurityConfig``, permitting(` .anyRequest().permitAll()`) every requests by default
+- [Spring Security](https://www.baeldung.com/spring-security-with-maven)
 ```java
 @Configuration
 public class SecurityConfig {
@@ -114,3 +115,67 @@ public boolean validateToken(String token){
 
 ### API Contract
 - `Swagger` API contract is been shared by services, that describes the api's that are accessed & shared between these microservices.
+
+### OAuth Mechanism
+There are 4 major components in OAuth 
+- AuthServer : AuthServer is the specialized authority who provides the identity of service.
+- Application/Resource Server : Any application who is requesting for getting the identity of service/user to get verified from AuthServer
+- 
+### Implementing OAuth in UserService
+
+- [Ref]()
+- By default, it doesn't allow the request, because of the `@Bean` in securityConfig, as its trying to fetch user details from In memory db
+```java
+@Bean
+    public UserDetailsService userDetailsService() {
+        UserDetails userDetails = User.withDefaultPasswordEncoder()
+                .username("user")
+                .password("password")
+                .roles("USER")
+                .build();
+
+        return new InMemoryUserDetailsManager(userDetails);
+    }
+```
+- Since, UserService have already `Bcrypt encoder`, we can provide as hashpassword & `.withDefaultPasswordEncoder()` can be removed by adding `.builder()`
+- Spring, by default, builds the service's `Bcrypt encoder`, therefore the code looks like, 
+```java
+@Bean
+    public UserDetailsService userDetailsService() {
+        UserDetails userDetails = User.builder()
+                .username("user")
+                .password("$2a$12$0I51Mrt/zxUYO/N88Imp2.RzzksaBtM3X4H/VSNv5dPNh5w6SLJsa")
+                .roles("USER")
+                .build();
+
+        return new InMemoryUserDetailsManager(userDetails);
+    }
+```
+- Where, the `password` its hashed using [Bcrypt-Generator.com - Online Bcrypt Hash Generator & Checker](https://bcrypt-generator.com/)
+
+------
+- Before, the application sends out the details of user to get validation from AuthServer like `Google AuthServer`, 
+- The service which is requesting to validate the User/any details, needs to be authenticated/authorized by `Google AuthServer`, this can be done using
+![img.png](img.png)
+```java
+@Bean
+public RegisteredClientRepository registeredClientRepository() {
+    RegisteredClient oidcClient = RegisteredClient.withId(UUID.randomUUID().toString())
+            .clientId("oidc-client")
+            .clientSecret("$2a$12$mTmbGQI/HiOpP/DERAXe5uejFnJepvNs46RjS24YzbJBse3j3ImIO")
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("https://oauth.pstmn.io/v1/callback")
+            .postLogoutRedirectUri("https://oauth.pstmn.io/v1/callback")
+            .scope(OidcScopes.OPENID)
+            .scope(OidcScopes.PROFILE)
+            .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
+            .build();
+
+    return new InMemoryRegisteredClientRepository(oidcClient);
+}
+```
+- This `Bean` in our service security config, helps us to indicate that, our service is authenticated to connect to `Auth Server`
+- The application which is requesting the user-identity from Auth-Server, will be authenticated via, `client_secret` & `client_id`
+

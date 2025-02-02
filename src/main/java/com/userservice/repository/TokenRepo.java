@@ -17,4 +17,6 @@ public interface TokenRepo extends JpaRepository<Token, Long> {
                                                              @Param("deleted") boolean deleted,
                                                              @Param("expiryAt") long expiryAt
     );
+
+    Optional<Token> findByValueAndDeletedEquals(String token, boolean isDeleted);
 }
