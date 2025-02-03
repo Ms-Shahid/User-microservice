@@ -116,14 +116,38 @@ public boolean validateToken(String token){
 ### API Contract
 - `Swagger` API contract is been shared by services, that describes the api's that are accessed & shared between these microservices.
 
-### OAuth Mechanism
-There are 4 major components in OAuth 
-- AuthServer : AuthServer is the specialized authority who provides the identity of service.
-- Application/Resource Server : Any application who is requesting for getting the identity of service/user to get verified from AuthServer
-- 
+----
+## OAuth 2.0
+
+### The Purpose of OAuth
+
+OAuth 2.0 is an industry-standard protocol for authorization, commonly used to grant access to third-party applications without exposing a user’s credentials. OAuth is especially useful when integrating third-party login options, such as "Login with Google" or "Login with GitHub."
+
+- **Example**: Many websites allow users to log in through third-party services like Google or Facebook, instead of implementing their own login systems.
+
+### How OAuth Works
+
+OAuth defines four key participants in the authorization process:
+
+1. **User**: The individual who wants to access a resource.
+2. **Resource Server**: The server that holds the protected resources (e.g., Google’s email server for Gmail).
+3. **Application**: The service that the user is trying to access (e.g., Scaler’s website).
+4. **Authorization Server**: The server that handles the login process and
+
+generates tokens (e.g., Google’s OAuth server).
+
+#### OAuth Flow:
+
+1. The user tries to access a resource on the **Application**.
+2. The application redirects the user to the **Authorization Server** for login.
+3. After login, the Authorization Server issues a token, which the user sends back to the application.
+4. The application uses this token to request resources from the **Resource Server**.
+5. The Resource Server validates the token, ensuring it is authentic (using the secret key or querying the Authorization Server), and grants access to the resources.
+
+![OAuth Flow](https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/088/683/original/2.png?1725537820)
+
 ### Implementing OAuth in UserService
 
-- [Ref]()
 - By default, it doesn't allow the request, because of the `@Bean` in securityConfig, as its trying to fetch user details from In memory db
 ```java
 @Bean
@@ -162,7 +186,7 @@ There are 4 major components in OAuth
 public RegisteredClientRepository registeredClientRepository() {
     RegisteredClient oidcClient = RegisteredClient.withId(UUID.randomUUID().toString())
             .clientId("oidc-client")
-            .clientSecret("$2a$12$mTmbGQI/HiOpP/DERAXe5uejFnJepvNs46RjS24YzbJBse3j3ImIO")
+            .clientSecret("$2a$12$mTmbGQI/HiOpP/DERAXe5uejFnJepvNs46RjS24YzbJBse3j3ImIO") //Bcrypted secret
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
@@ -179,3 +203,34 @@ public RegisteredClientRepository registeredClientRepository() {
 - This `Bean` in our service security config, helps us to indicate that, our service is authenticated to connect to `Auth Server`
 - The application which is requesting the user-identity from Auth-Server, will be authenticated via, `client_secret` & `client_id`
 
+-----
+### Integrating the OAuth with user-service & database layer
+
+Known exception/errors 
+1. ``Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs``
+- To fix this, add `@Lob` at the table, where row size is >255 varchar
+2. [``No AuthenticationProvider found for org.springframework.security.authentication.UsernamePasswordAuthenticationToken``](https://github.com/spring-projects/spring-security/issues/13652#issuecomment-1683525778)
+- To fix that, you have to create custom userDetails implementation, by override the `UserDetailsService` interface, 
+- In the security.services - `CustomUserServiceDetails` implements `UserDetailsService`
+```java
+@Service
+public class CustomUserServiceDetails implements UserDetailsService {
+
+    private UserRepository userRepository;
+
+    public CustomUserServiceDetails(UserRepository userRepository){
+        this.userRepository = userRepository;
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        Optional<User> userOptional = userRepository.findByEmail(username);
+        if( userOptional.isEmpty() )
+            throw new UsernameNotFoundException("User with email: " + username + " doesn't exist");
+
+        return new CustomUserDetails(userOptional.get());
+    }
+}
+```
+3. [``failed to lazily initialize a collection of role: com.userservice.models.User.roles: could not initialize proxy - no Session``](https://www.baeldung.com/hibernate-initialize-proxy-exception)
+- This error occurs due to fetch type, whenever there is dependency of `@ManyToMany`, add explict of FetchType as `Eager`

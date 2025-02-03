@@ -31,7 +31,9 @@ public class UserController {
                     signUpRequestDto.getEmail(),
                     signUpRequestDto.getPassword()
         );
-
+        System.out.println(
+                "user details -> " +signUpRequestDto.getName() + " " + signUpRequestDto.getEmail() + " " + signUpRequestDto.getPassword()
+        );
         return UserResponseDto.from(user);
     }
 
